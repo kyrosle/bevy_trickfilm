@@ -32,6 +32,10 @@ fn run_animation_player_spritesheet(
         return;
     }
 
+    if !paused {
+        elapse_animation(time, &mut player.animation);
+    }
+
     apply_animation_player_spritesheet(
         time,
         animation_clips,
@@ -39,6 +43,11 @@ fn run_animation_player_spritesheet(
         paused,
         &mut texture_atlas.index,
     );
+}
+
+fn elapse_animation(time: &Time, animation: &mut PlayingAnimation2D) {
+    let sign = if animation.reverse { -1.0 } else { 1.0 };
+    animation.elapsed += sign * time.delta_seconds() * animation.speed;
 }
 
 fn apply_animation_player_spritesheet(
@@ -67,6 +76,12 @@ fn apply_animation_player_spritesheet(
         };
 
         let keyframes = animation_clip.keyframes();
-        *texture_atlas_index = keyframes[index]
+        *texture_atlas_index = keyframes[index];
+
+        animation.clip_finished = if animation.reverse {
+            index == 0
+        } else {
+            index == keyframes.len() - 1
+        };
     }
 }

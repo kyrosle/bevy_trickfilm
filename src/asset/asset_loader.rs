@@ -69,44 +69,46 @@ impl AssetLoader for Animation2DLoader {
     type Settings = ();
     type Error = Animation2DLoaderError;
 
-    async fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader<'_>,
-        _settings: &'a (),
-        load_context: &'a mut LoadContext<'_>,
-    ) -> Result<Self::Asset, Self::Error> {
-        let mut bytes = Vec::new();
-        reader.read_to_end(&mut bytes).await?;
-        let trickfilm_entries = ron::de::from_bytes::<HashMap<String, TrickfilmEntry>>(&bytes)?;
+    fn load<'a>(
+            &'a self,
+            reader: &'a mut Reader,
+            _settings: &'a Self::Settings,
+            load_context: &'a mut LoadContext,
+        ) -> bevy::utils::BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
+        Box::pin(async move {
+            let mut bytes = Vec::new();
+            reader.read_to_end(&mut bytes).await?;
+            let trickfilm_entries = ron::de::from_bytes::<HashMap<String, TrickfilmEntry>>(&bytes)?;
 
-        let animations: Result<HashMap<String, Handle<AnimationClip2D>>, AnimationClip2DError> =
-            trickfilm_entries
-                .into_iter()
-                .map(|(name, entry)| {
-                    let duration = entry.duration;
-                    let keyframes: Vec<usize> = entry.keyframes.into();
-                    let keyframe_timestamps = entry.keyframe_timestamps.unwrap_or(
-                        (0..keyframes.len())
-                            .map(|i| {
-                                let i = i as f32 / keyframes.len() as f32;
-                                i * duration
-                            })
-                            .collect(),
-                    );
+            let animations: Result<HashMap<String, Handle<AnimationClip2D>>, AnimationClip2DError> =
+                trickfilm_entries
+                    .into_iter()
+                    .map(|(name, entry)| {
+                        let duration = entry.duration;
+                        let keyframes: Vec<usize> = entry.keyframes.into();
+                        let keyframe_timestamps = entry.keyframe_timestamps.unwrap_or(
+                            (0..keyframes.len())
+                                .map(|i| {
+                                    let i = i as f32 / keyframes.len() as f32;
+                                    i * duration
+                                })
+                                .collect(),
+                        );
 
-                    let animation_clip =
-                        AnimationClip2D::new(keyframe_timestamps, keyframes, duration)?;
-                    Ok((
-                        name.clone(),
-                        load_context.add_labeled_asset(name, animation_clip),
-                    ))
-                })
-                .collect();
+                        let animation_clip =
+                            AnimationClip2D::new(keyframe_timestamps, keyframes, duration)?;
+                        Ok((
+                            name.clone(),
+                            load_context.add_labeled_asset(name, animation_clip),
+                        ))
+                    })
+                    .collect();
 
-        let animation_clip_2d_set = AnimationClip2DSet {
-            animations: animations?,
-        };
-        Ok(animation_clip_2d_set)
+            let animation_clip_2d_set = AnimationClip2DSet {
+                animations: animations?,
+            };
+            Ok(animation_clip_2d_set)
+        })
     }
 
     fn extensions(&self) -> &[&str] {
