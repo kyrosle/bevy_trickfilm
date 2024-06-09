@@ -25,6 +25,8 @@ impl Plugin for AnimationPlayer2DPlugin {
 #[derive(Reflect)]
 struct PlayingAnimation2D {
     repeat: RepeatAnimation,
+    reverse: bool,
+    clip_finished: bool,
     speed: f32,
     elapsed: f32,
     seek_time: f32,
@@ -36,6 +38,8 @@ impl Default for PlayingAnimation2D {
     fn default() -> Self {
         Self {
             repeat: Default::default(),
+            reverse: false,
+            clip_finished: false,
             speed: 1.0,
             elapsed: 0.0,
             seek_time: 0.0,
@@ -65,25 +69,19 @@ impl PlayingAnimation2D {
             return;
         }
 
+        let direction_multiplier = if self.reverse { -1.0 } else { 1.0 };
         self.elapsed += delta;
-        self.seek_time += delta * self.speed;
+        self.seek_time += delta * self.speed * direction_multiplier;
 
-        let over_time = self.speed > 0.0 && self.seek_time >= clip_duration;
-        let under_time = self.speed < 0.0 && self.seek_time < 0.0;
-
-        if over_time || under_time {
-            self.completions += 1;
-
-            if self.is_finished() {
-                return;
-            }
-        }
         if self.seek_time >= clip_duration {
             self.seek_time %= clip_duration;
-        }
-        // Note: assumes delta is never lower than -clip_duration
-        if self.seek_time < 0.0 {
+        } else if self.seek_time < 0.0 {
             self.seek_time += clip_duration;
+        }
+
+        if (self.reverse && self.seek_time <= 0.0) || (!self.reverse && self.seek_time >= clip_duration) {
+            self.completions += 1;
+            self.seek_time = if self.reverse { clip_duration } else { 0.0 };
         }
     }
 
@@ -134,6 +132,28 @@ impl AnimationPlayer2D {
     /// Check if the playing animation has finished, according to the repetition behavior.
     pub fn is_finished(&self) -> bool {
         self.animation.is_finished()
+    }
+
+    /// Check if the clip animation has finished, regardless of its clip behavior.
+    pub fn is_clip_finished(&self) -> bool {
+        self.animation.clip_finished
+    }
+
+    /// Play animation in reverse.
+    pub fn reverse(&mut self) -> &mut Self {
+        self.animation.reverse = true;
+        self
+    }
+
+    /// Stop playing animation in reverse.
+    pub fn stop_reverse(&mut self) -> &mut Self {
+        self.animation.reverse = false;
+        self
+    }
+
+    /// Is the animation playing in reverse
+    pub fn is_reverse(&self) -> bool {
+        self.animation.reverse
     }
 
     /// Sets repeat to [`RepeatAnimation::Forever`].

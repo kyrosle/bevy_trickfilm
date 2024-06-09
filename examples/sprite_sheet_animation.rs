@@ -34,7 +34,7 @@ fn setup(
     ];
 
     let atlas_texture = asset_server.load("gabe-idle-run.png");
-    let texture_atlas_layout = TextureAtlasLayout::from_grid(UVec2::new(24, 24), 7, 1, None, None);
+    let texture_atlas_layout = TextureAtlasLayout::from_grid(Vec2::new(24., 24.), 7, 1, None, None);
     let texture_atlas = TextureAtlas {
         layout: texture_atlas_layouts.add(texture_atlas_layout),
         ..Default::default()
